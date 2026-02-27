@@ -1,0 +1,20 @@
+name: Ejecutar cada 2 horas
+on:
+  schedule:
+    - cron: '0 */2 * * *'
+  workflow_dispatch:
+
+jobs:
+  job_agente:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v4
+        with:
+          python-version: '3.9'
+      - run: pip install selenium webdriver-manager
+      - run: python agente.py
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Mi-Archivo-Bolsa
+          path: resultado.txt
