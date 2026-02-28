@@ -10,63 +10,53 @@ o = Options()
 o.add_argument("--headless")
 o.add_argument("--no-sandbox")
 o.add_argument("--disable-dev-shm-usage")
-o.add_argument("--window-size=1920,1080")
-o.add_argument("user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36")
+# Disfraz mucho más fuerte
+o.add_argument("user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
+# Ocultar que es un robot
+o.add_argument("--disable-blink-features=AutomationControlled")
 
 dr = webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=o)
+dr.execute_cdp_cmd("Page.addScriptToEvaluateOnNewDocument", {
+    "source": "Object.defineProperty(navigator, 'webdriver', {get: () => undefined})"
+})
 
 try:
-    print("Accediendo a la web...")
+    print("Entrando en Astursalud...")
     dr.get("https://www.astursalud.es/demandantes-empleo?p_p_id=AstursaludPortletBepe&p_p_lifecycle=0&p_p_state=normal&p_p_mode=view&_AstursaludPortletBepe_article_id=56884")
-    time.sleep(15)
-
-    # Intentamos encontrar el selector de área de varias formas
-    found = False
     
-    # 1. Probar en la página principal
-    try:
-        area_el = dr.find_element(By.ID, "_AstursaludPortletBepe_area")
-        found = True
-        print("Encontrado en página principal")
-    except:
-        # 2. Si no, buscar en todos los iframes uno por uno
-        iframes = dr.find_elements(By.TAG_NAME, "iframe")
-        print(f"Buscando en {len(iframes)} iframes...")
-        for i, frame in enumerate(iframes):
-            dr.switch_to.default_content()
-            dr.switch_to.frame(i)
-            try:
-                area_el = dr.find_element(By.ID, "_AstursaludPortletBepe_area")
-                found = True
-                print(f"Encontrado en iframe {i}")
-                break
-            except:
-                continue
-
+    # Espera extra para que cargue la seguridad de la web
+    time.sleep(25)
+    dr.save_screenshot("intento1.png")
+    
+    # Intentar buscar el formulario
+    found = False
+    iframes = dr.find_elements(By.TAG_NAME, "iframe")
+    print(f"Iframe encontrados: {len(iframes)}")
+    
+    for i, frame in enumerate(iframes):
+        dr.switch_to.default_content()
+        dr.switch_to.frame(i)
+        try:
+            area_el = dr.find_element(By.ID, "_AstursaludPortletBepe_area")
+            found = True
+            print(f"Formulario encontrado en iframe {i}")
+            break
+        except:
+            continue
+            
     if found:
-        # Seleccionar Area IV
         Select(area_el).select_by_value("4")
-        time.sleep(3)
-        
-        # Seleccionar Enfermero/a
-        cat_el = dr.find_element(By.ID, "_AstursaludPortletBepe_categoria")
-        Select(cat_el).select_by_value("114")
-        time.sleep(3)
-        
-        # Click Consultar
-        btn = dr.find_element(By.ID, "_AstursaludPortletBepe_consultarBusca")
-        dr.execute_script("arguments[0].click();", btn)
-        print("Consulta enviada...")
-        time.sleep(15)
-        
-        # Guardar resultado
+        time.sleep(5)
+        Select(dr.find_element(By.ID, "_AstursaludPortletBepe_categoria")).select_by_value("114")
+        time.sleep(5)
+        dr.find_element(By.ID, "_AstursaludPortletBepe_consultarBusca").click()
+        time.sleep(20)
         with open("resultado.txt", "w", encoding="utf-8") as f:
             f.write(dr.find_element(By.TAG_NAME, "body").text)
     else:
-        print("No se encontró el formulario en ningún sitio.")
-        dr.save_screenshot("error.png")
+        dr.save_screenshot("error_final.png")
         with open("resultado.txt", "w") as f:
-            f.write("ERROR: Formulario no localizado. Revisa la captura de pantalla.")
+            f.write("ERROR: Formulario no localizado tras reintentos.")
 
 finally:
     dr.quit()
